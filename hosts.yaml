@@ -1,0 +1,5 @@
+---
+ansible-targets:
+  hosts:
+    target01:
+      ansible_host: 192.168.1.139
