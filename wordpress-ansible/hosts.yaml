@@ -1,0 +1,8 @@
+#############################################################################
+#               Invintory of hosts named ansibleTargets
+#############################################################################
+---
+ansibleTargets:
+  hosts:
+    target01:
+      ansible_host: ansible-target

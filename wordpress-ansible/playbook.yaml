@@ -1,24 +1,14 @@
+#############################################################################
+# This playbook sets up a WordPress web server using the LAMP stack
+#
+# To use this playbook:
+#   ansible-playbook playbook.yaml -i hosts.yaml -u <sudo user> --ask-become
+#############################################################################
+
 ---
 - hosts: all
   become: true
   vars:
-    lamp_packages:
-    - apache2
-    - mysql-server
-    - python3-pymysql
-    - php
-    - php-mysql
-    - libapache2-mod-php
-    php_modules: 
-    - php-curl
-    - php-gd
-    - php-mbstring
-    - php-xml
-    - php-xmlrpc
-    - php-soap
-    - php-intl
-    - php-zip
-
     mysql_root_password: "root"
     mysql_db: "wordpress"
     mysql_user: "khewitt"
@@ -30,25 +20,33 @@
 
   tasks:
 # System
-    - name: Install prerequisites
-      apt: 
-        name: aptitude 
-        update_cache: yes 
-        state: latest
-
     - name: Install LAMP Packages
       apt: 
         name: "{{ item }}" 
         update_cache: yes 
         state: latest
-      loop: "{{ lamp_packages }}"
+      loop:
+      - apache2
+      - mysql-server
+      - python3-pymysql
+      - php
+      - php-mysql
+      - libapache2-mod-php
 
     - name: Install PHP Extensions
       apt: 
         name: "{{ item }}" 
         update_cache: yes
         state: latest
-      loop: "{{ php_modules }}"
+      loop:
+      - php-curl
+      - php-gd
+      - php-mbstring
+      - php-xml
+      - php-xmlrpc
+      - php-soap
+      - php-intl
+      - php-zip
 
 # Apache
     - name: Create document root
@@ -73,33 +71,16 @@
       shell: /usr/sbin/a2ensite {{ http_conf }}
       notify: Reload Apache
 
-    # - name: Disable default Apache site
-    #   shell: /usr/sbin/a2dissite 000-default.conf
-    #   notify: Restart Apache
-
 # MySQL
     - name: Set the root password
+      no_log: true
       mysql_user:
         name: root
         password: "{{ mysql_root_password }}"
         login_unix_socket: /var/run/mysqld/mysqld.sock
 
-    # - name: Remove all anonymous user accounts
-    #   mysql_user:
-    #     name: ''
-    #     host_all: yes
-    #     state: absent
-    #     login_user: root
-    #     login_password: "{{ mysql_root_password }}"
-
-    # - name: Remove the MySQL test database
-    #   mysql_db:
-    #     name: test
-    #     state: absent
-    #     login_user: root
-    #     login_password: "{{ mysql_root_password }}"
-
     - name: Creates database for WordPress
+      no_log: true
       mysql_db:
         name: "{{ mysql_db }}"
         state: present
@@ -107,6 +88,7 @@
         login_password: "{{ mysql_root_password }}"
 
     - name: Create MySQL user for WordPress
+      no_log: true
       mysql_user:
         name: "{{ mysql_user }}"
         password: "{{ mysql_password }}"
@@ -123,29 +105,22 @@
         proto: tcp
 
 # WordPress
-    - name: Download WordPress
+    - name: Download/Unpack WordPress
       unarchive:
         src: https://wordpress.org/latest.tar.gz
         dest: "/var/www/{{ http_host }}"
         remote_src: yes
         creates: "/var/www/{{ http_host }}/wordpress"
 
-    - name: Set ownership
+    - name: Set ownership and permissions recusively
       file:
         path: "/var/www/{{ http_host }}"
         state: directory
         recurse: yes
         owner: www-data
         group: www-data
-
-    # - name: Set permissions for directories
-    #   shell: "/usr/bin/find /var/www/{{ http_host }}/wordpress/ -type d -exec chmod 750 {} \\;"
-
-    # - name: Set permissions for files
-    #   shell: "/usr/bin/find /var/www/{{ http_host }}/wordpress/ -type f -exec chmod 640 {} \\;"
-    - name: Set permissions
-      shell: "chmod -R 750 /var/www/{{ http_host }}/wordpress"
-      
+        mode: '1750'
+     
     - name: Set up wp-config
       template:
         src: "./wp-config.php.j2"
@@ -156,8 +131,3 @@
       service:
         name: apache2
         state: reloaded
-
-    # - name: Restart Apache
-    #   service:
-    #     name: apache2
-    #     state: restarted
