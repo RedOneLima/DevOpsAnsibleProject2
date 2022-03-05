@@ -11,6 +11,9 @@
     - [Environemnt](#environemnt)
   - [Playbook description](#playbook-description)
   - [Configurations](#configurations)
+    - [ansible.cfg](#ansiblecfg)
+    - [playbook.yaml](#playbookyaml)
+    - [Vault Passwords](#vault-passwords)
     - [apache.conf.j2](#apacheconfj2)
     - [wp-config.php.j2](#wp-configphpj2)
   - [Create Web Server](#create-web-server)
@@ -69,6 +72,30 @@ Steps to Perform:
 
 ## Configurations
 
+### ansible.cfg
+
+* The ansible.cfg is going to define the desired default behaviors
+  * Ask for vault password for encrypted variables
+  * Set the remote user to `khewitt`
+  * reference the `hosts.yaml` as the default inventory
+  * Ask for the sudo password before running the playbook
+
+```bash
+####################################################################
+#                    Default configurations                        #
+####################################################################
+
+[defaults]
+ask_vault_pass = True # Prompt for the vault password for encrypted
+remote_user = khewitt # What user to run the playbook as
+inventory = hosts.yaml # The default inventory
+
+[privilege_escalation]
+become_ask_pass = True # Prompt for the user sudo password
+```
+
+### playbook.yaml
+
 * `mysql_root_password` - Specifies the new sql root pass
 * `mysql_db` - The name of the database that wp will use
 * `mysql_user` - The user that wp will use to access the database
@@ -76,6 +103,31 @@ Steps to Perform:
 * `http_host` - The name of the wordpress host. Note this is what needs to be set in /etc/hosts in order to access the correct path within the browser to access the page. If you don't want to use a hostname, make this the IP that will be used to access the wordpress page.
 * `http_conf` - The name of the configuration file associated with the web host. Note this needs to be `http_host`.conf to work correctly.
 * `http_port` - The port the server will listen to http requests on. Default web port is 80.
+
+### Vault Passwords
+
+* There are two passwords in the playbook configuration, `mysql_root_password` and `mysql_password`
+* Since there are not any more secrets, maintaining an encrypyed secret file is not needed and instead string value encryption is all that is used in this playbook. 
+
+* To create the encrypted strings:
+
+```bash
+> ansible-vault encrypt_string 'secret-string' --name 'secret-name'
+
+New Vault password:
+Confirm New Vault password:
+secret-name: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          39313261343739333962616433393335303135383235383135653331643239646664373430396562
+          6534363232376238643635323439383039303834366332380a653434323261383038666435356333
+          64303434313964353638303738323964333338616134396233643130303738313432303031623766
+          3538353533633632380a653232623637653663383430623733653134626562326432646466313032
+          3261
+Encryption successful
+```
+
+* The password set here will be the one entered when prompted when the playbook is executed 
+
 
 ### apache.conf.j2
 
@@ -125,20 +177,8 @@ ansibleTargets:
 * Now we will run the playbook to configure the webpress server
 
 ```bash
-ansible-playbook playbook.yaml -i hosts.yaml -u khewitt --ask-become-pass
+ansible-playbook playbook.yaml
 ```
-
-* `ansible-playbook`
-  - The command to run a playbook
-* `playbook.yaml`
-  - The name of the playbook to run
-* `-i hosts.yaml`
-  - The specified inventory file
-  - I prefer to specify my inventory instead of having it in a cfg so that there's no ambiguity in the targets. This is optional if the target hosts are specificed in the ansible.cfg
-* `-u khewitt`
-  - The user to run the playbook as
-* `--ask-become-pass`
-  - Promts for the sudo password when the command is ran so that the playbook can run PU commands as the specified user.
 
 
 ![Playbook run output](./images/playbook-run-output.png)*Playbook run output*
